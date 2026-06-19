@@ -59,12 +59,8 @@ class CustomBasys3SoC(BaseSoC):
         self.submodules.portb = GPIOOut(portb_pads)
         self.submodules.portc = GPIOIn(portc_pads)
 
-        _pmodd_io = [
-            ("pmodd", 0, Pins("K17 M18 N17 P18 L17 M19 P17 R18"), IOStandard("LVCMOS33")) # Replace with your actual 8 pins
-        ]
-        self.platform.add_extension(_pmodd_io)
-        pmodd_pads = self.platform.request("pmodd") 
-        self.submodules.portd = GPIOTristate(pmodd_pads)
+        btns = Cat([self.platform.request(f"user_btn{i}", 0) for i in ('u', 'd', 'l', 'r')])
+        self.submodules.portd = GPIOIn(btns)
 
         # ── 3b. PWM Timer (timer1.v via AutoCSR) ──
         # Request 4 PWM output pins from PMOD JB bottom row.
@@ -92,6 +88,7 @@ class CustomBasys3SoC(BaseSoC):
         self.submodules.watchdog = WatchdogTimer()
         # Watchdog expiry triggers CPU reset (OR'd with system reset)
         self.comb += If(self.watchdog.reset_out, self.cpu.reset.eq(1))
+        # self.comb += If(self.watchdog.reset_out, self.crg.rst.eq(1))
 
         # ── 4. Define External PMOD Pins (PMOD JA/JB) ──
         # Add a new extension for the second UART
