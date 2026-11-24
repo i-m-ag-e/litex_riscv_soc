@@ -1,0 +1,496 @@
+{
+    "csr_bases": {
+        "ctrl": 2181038080,
+        "i2c": 2181040128,
+        "identifier_mem": 2181042176,
+        "portb": 2181044224,
+        "portc": 2181046272,
+        "portd": 2181048320,
+        "prog_mode": 2181050368,
+        "spi": 2181052416,
+        "spi_phy": 2181054464,
+        "spiflash": 2181056512,
+        "timer0": 2181058560,
+        "timer1": 2181060608,
+        "uart": 2181062656,
+        "uart1": 2181064704,
+        "watchdog": 2181066752
+    },
+    "csr_registers": {
+        "ctrl_reset": {
+            "addr": 2181038080,
+            "size": 1,
+            "type": "rw"
+        },
+        "ctrl_scratch": {
+            "addr": 2181038084,
+            "size": 1,
+            "type": "rw"
+        },
+        "ctrl_bus_errors": {
+            "addr": 2181038088,
+            "size": 1,
+            "type": "ro"
+        },
+        "i2c_phy_speed_mode": {
+            "addr": 2181040128,
+            "size": 1,
+            "type": "rw"
+        },
+        "i2c_master_active": {
+            "addr": 2181040132,
+            "size": 1,
+            "type": "rw"
+        },
+        "i2c_master_settings": {
+            "addr": 2181040136,
+            "size": 1,
+            "type": "rw"
+        },
+        "i2c_master_addr": {
+            "addr": 2181040140,
+            "size": 1,
+            "type": "rw"
+        },
+        "i2c_master_rxtx": {
+            "addr": 2181040144,
+            "size": 1,
+            "type": "rw"
+        },
+        "i2c_master_status": {
+            "addr": 2181040148,
+            "size": 1,
+            "type": "ro"
+        },
+        "i2c_master_ev_status": {
+            "addr": 2181040152,
+            "size": 1,
+            "type": "ro"
+        },
+        "i2c_master_ev_pending": {
+            "addr": 2181040156,
+            "size": 1,
+            "type": "rw"
+        },
+        "i2c_master_ev_enable": {
+            "addr": 2181040160,
+            "size": 1,
+            "type": "rw"
+        },
+        "portb_oe": {
+            "addr": 2181044224,
+            "size": 1,
+            "type": "rw"
+        },
+        "portb_in": {
+            "addr": 2181044228,
+            "size": 1,
+            "type": "ro"
+        },
+        "portb_out": {
+            "addr": 2181044232,
+            "size": 1,
+            "type": "rw"
+        },
+        "portc_oe": {
+            "addr": 2181046272,
+            "size": 1,
+            "type": "rw"
+        },
+        "portc_in": {
+            "addr": 2181046276,
+            "size": 1,
+            "type": "ro"
+        },
+        "portc_out": {
+            "addr": 2181046280,
+            "size": 1,
+            "type": "rw"
+        },
+        "portd_oe": {
+            "addr": 2181048320,
+            "size": 1,
+            "type": "rw"
+        },
+        "portd_in": {
+            "addr": 2181048324,
+            "size": 1,
+            "type": "ro"
+        },
+        "portd_out": {
+            "addr": 2181048328,
+            "size": 1,
+            "type": "rw"
+        },
+        "prog_mode_in": {
+            "addr": 2181050368,
+            "size": 1,
+            "type": "ro"
+        },
+        "spi_master_cs": {
+            "addr": 2181052416,
+            "size": 1,
+            "type": "rw"
+        },
+        "spi_master_phyconfig": {
+            "addr": 2181052420,
+            "size": 1,
+            "type": "rw"
+        },
+        "spi_master_rxtx": {
+            "addr": 2181052424,
+            "size": 1,
+            "type": "rw"
+        },
+        "spi_master_status": {
+            "addr": 2181052428,
+            "size": 1,
+            "type": "ro"
+        },
+        "spi_master_clk_divisor": {
+            "addr": 2181052432,
+            "size": 1,
+            "type": "rw"
+        },
+        "spi_master_ev_status": {
+            "addr": 2181052436,
+            "size": 1,
+            "type": "ro"
+        },
+        "spi_master_ev_pending": {
+            "addr": 2181052440,
+            "size": 1,
+            "type": "rw"
+        },
+        "spi_master_ev_enable": {
+            "addr": 2181052444,
+            "size": 1,
+            "type": "rw"
+        },
+        "spi_phy_clk_divisor": {
+            "addr": 2181054464,
+            "size": 1,
+            "type": "rw"
+        },
+        "spi_phy_mode": {
+            "addr": 2181054468,
+            "size": 1,
+            "type": "rw"
+        },
+        "spiflash_phy_clk_divisor": {
+            "addr": 2181056512,
+            "size": 1,
+            "type": "rw"
+        },
+        "spiflash_phy_mode": {
+            "addr": 2181056516,
+            "size": 1,
+            "type": "rw"
+        },
+        "spiflash_mmap_clk_divisor": {
+            "addr": 2181056520,
+            "size": 1,
+            "type": "rw"
+        },
+        "spiflash_mmap_dummy_bits": {
+            "addr": 2181056524,
+            "size": 1,
+            "type": "rw"
+        },
+        "spiflash_master_cs": {
+            "addr": 2181056528,
+            "size": 1,
+            "type": "rw"
+        },
+        "spiflash_master_phyconfig": {
+            "addr": 2181056532,
+            "size": 1,
+            "type": "rw"
+        },
+        "spiflash_master_rxtx": {
+            "addr": 2181056536,
+            "size": 1,
+            "type": "rw"
+        },
+        "spiflash_master_status": {
+            "addr": 2181056540,
+            "size": 1,
+            "type": "ro"
+        },
+        "spiflash_master_clk_divisor": {
+            "addr": 2181056544,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer0_load": {
+            "addr": 2181058560,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer0_reload": {
+            "addr": 2181058564,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer0_en": {
+            "addr": 2181058568,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer0_update_value": {
+            "addr": 2181058572,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer0_value": {
+            "addr": 2181058576,
+            "size": 1,
+            "type": "ro"
+        },
+        "timer0_ev_status": {
+            "addr": 2181058580,
+            "size": 1,
+            "type": "ro"
+        },
+        "timer0_ev_pending": {
+            "addr": 2181058584,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer0_ev_enable": {
+            "addr": 2181058588,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer1_ctrl": {
+            "addr": 2181060608,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer1_top": {
+            "addr": 2181060612,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer1_cc_a": {
+            "addr": 2181060616,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer1_cc_b": {
+            "addr": 2181060620,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer1_cc_c": {
+            "addr": 2181060624,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer1_cc_d": {
+            "addr": 2181060628,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer1_tcnt": {
+            "addr": 2181060632,
+            "size": 1,
+            "type": "ro"
+        },
+        "timer1_ev_status": {
+            "addr": 2181060636,
+            "size": 1,
+            "type": "ro"
+        },
+        "timer1_ev_pending": {
+            "addr": 2181060640,
+            "size": 1,
+            "type": "rw"
+        },
+        "timer1_ev_enable": {
+            "addr": 2181060644,
+            "size": 1,
+            "type": "rw"
+        },
+        "uart_rxtx": {
+            "addr": 2181062656,
+            "size": 1,
+            "type": "rw"
+        },
+        "uart_txfull": {
+            "addr": 2181062660,
+            "size": 1,
+            "type": "ro"
+        },
+        "uart_rxempty": {
+            "addr": 2181062664,
+            "size": 1,
+            "type": "ro"
+        },
+        "uart_ev_status": {
+            "addr": 2181062668,
+            "size": 1,
+            "type": "ro"
+        },
+        "uart_ev_pending": {
+            "addr": 2181062672,
+            "size": 1,
+            "type": "rw"
+        },
+        "uart_ev_enable": {
+            "addr": 2181062676,
+            "size": 1,
+            "type": "rw"
+        },
+        "uart_txempty": {
+            "addr": 2181062680,
+            "size": 1,
+            "type": "ro"
+        },
+        "uart_rxfull": {
+            "addr": 2181062684,
+            "size": 1,
+            "type": "ro"
+        },
+        "uart1_rxtx": {
+            "addr": 2181064704,
+            "size": 1,
+            "type": "rw"
+        },
+        "uart1_txfull": {
+            "addr": 2181064708,
+            "size": 1,
+            "type": "ro"
+        },
+        "uart1_rxempty": {
+            "addr": 2181064712,
+            "size": 1,
+            "type": "ro"
+        },
+        "uart1_ev_status": {
+            "addr": 2181064716,
+            "size": 1,
+            "type": "ro"
+        },
+        "uart1_ev_pending": {
+            "addr": 2181064720,
+            "size": 1,
+            "type": "rw"
+        },
+        "uart1_ev_enable": {
+            "addr": 2181064724,
+            "size": 1,
+            "type": "rw"
+        },
+        "uart1_txempty": {
+            "addr": 2181064728,
+            "size": 1,
+            "type": "ro"
+        },
+        "uart1_rxfull": {
+            "addr": 2181064732,
+            "size": 1,
+            "type": "ro"
+        },
+        "watchdog_load": {
+            "addr": 2181066752,
+            "size": 1,
+            "type": "rw"
+        },
+        "watchdog_ctrl": {
+            "addr": 2181066756,
+            "size": 1,
+            "type": "rw"
+        },
+        "watchdog_feed": {
+            "addr": 2181066760,
+            "size": 1,
+            "type": "rw"
+        },
+        "watchdog_counter": {
+            "addr": 2181066764,
+            "size": 1,
+            "type": "ro"
+        }
+    },
+    "constants": {
+        "config_platform_name": "asic_soc",
+        "config_clock_frequency": 100000000,
+        "config_cpu_has_interrupt": null,
+        "config_cpu_reset_addr": 0,
+        "config_cpu_type_picorv32": null,
+        "config_cpu_variant_standard": null,
+        "config_cpu_family": "riscv",
+        "config_cpu_name": "picorv32",
+        "config_cpu_human_name": "PicoRV32",
+        "config_cpu_nop": "nop",
+        "config_rom_init": 1,
+        "config_identifier": "ATmega328P ASIC Clone 2026-07-16 17:13:15",
+        "config_uart_rx_fifo_rx_we": 1,
+        "bios_none": 1,
+        "spiflash_phy_frequency": 16666666,
+        "spiflash_phy_min_divisor": 2,
+        "spiflash_module_name": "s25fl032",
+        "spiflash_module_total_size": 4194304,
+        "spiflash_module_page_size": 256,
+        "rom_boot_address": 0,
+        "cpu_reset_address": 0,
+        "config_csr_data_width": 32,
+        "config_csr_alignment": 32,
+        "config_csr_ordering_big": null,
+        "config_bus_standard": "wishbone",
+        "config_bus_data_width": 32,
+        "config_bus_address_width": 32,
+        "config_bus_bursting": 0,
+        "config_cpu_interrupts": 9,
+        "i2c_interrupt": 6,
+        "spi_interrupt": 7,
+        "timer0_interrupt": 4,
+        "timer1_interrupt": 5,
+        "uart_interrupt": 3,
+        "uart1_interrupt": 8
+    },
+    "memories": {
+        "rom": {
+            "base": 0,
+            "size": 4096,
+            "type": "cached"
+        },
+        "sram": {
+            "base": 16777216,
+            "size": 32768,
+            "type": "cached"
+        },
+        "main_ram": {
+            "base": 1073741824,
+            "size": 32768,
+            "type": "cached"
+        },
+        "spiflash": {
+            "base": 4194304,
+            "size": 4194304,
+            "type": "cached"
+        },
+        "csr": {
+            "base": 2181038080,
+            "size": 65536,
+            "type": "io"
+        }
+    },
+    "cores": {
+        "ctrl": "SoCController",
+        "i2c": "LiteI2C",
+        "portb": "GPIOTristate",
+        "portc": "GPIOTristate",
+        "portd": "GPIOTristate",
+        "prog_mode": "GPIOIn",
+        "spi": "LiteSPI",
+        "spi_phy": "LiteSPIPHY",
+        "spiflash": "LiteSPI",
+        "timer0": "Timer",
+        "timer1": "Timer1LiteX",
+        "uart": "UART",
+        "uart1": "UART",
+        "watchdog": "WatchdogTimer"
+    }
+}

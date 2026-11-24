@@ -9,7 +9,7 @@ pico_sdk_init()
 add_executable(shrike_slave main.c)
 
 # Pull in the hardware libraries for SPI and UART
-target_link_libraries(shrike_slave pico_stdlib hardware_uart hardware_spi hardware_irq)
+target_link_libraries(shrike_slave pico_stdlib hardware_uart hardware_spi hardware_irq hardware_i2c pico_i2c_slave)
 
 # Enable USB serial and disable standard UART serial for printf (optional, but good practice)
 pico_enable_stdio_usb(shrike_slave 1)

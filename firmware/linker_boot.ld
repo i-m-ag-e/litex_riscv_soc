@@ -1,4 +1,5 @@
-INCLUDE ../build/digilent_basys3/software/include/generated/regions.ld
+/* regions.ld comes from the LiteX build dir, found via -L$(BUILDINC_DIRECTORY) in the Makefile */
+INCLUDE generated/regions.ld
 
 ENTRY(_start)
 
@@ -27,6 +28,7 @@ SECTIONS {
         _ebss = .;
     } > sram
     
-    /* Set stack pointer to the top of the bootloader's SRAM region */
-    PROVIDE(_fstack = ORIGIN(sram) + LENGTH(sram));
+    /* Stack top fixed at sram + 8 KB (the Basys3 SRAM size) so the bootloader
+       builds identical to the ROM in rtl/rom.v. The ASIC has 32 KB of SRAM. */
+    PROVIDE(_fstack = ORIGIN(sram) + 0x2000);
 }

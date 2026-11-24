@@ -1,17 +1,21 @@
-BUILD_DIR = ../build/digilent_basys3
+BUILD_DIR = ../build/asic_soc
 
-# Pull in the LiteX directories and CPU flags
-include $(BUILD_DIR)/software/include/generated/variables.mak
+# LiteX build output: generated/csr.h, soc.h, mem.h, regions.ld
+BUILDINC_DIRECTORY := $(abspath $(BUILD_DIR)/software/include)
+
+# CPU flags (copied from LiteX's variables.mak for picorv32)
+CPUFLAGS = -mno-save-restore -march=rv32i2p0_m -mabi=ilp32 -D__picorv32__
 
 CC      = riscv64-unknown-elf-gcc
 OBJCOPY = riscv64-unknown-elf-objcopy
 
-# LiteX header paths
+# include/ holds the two LiteX headers we use (system.h, hw/common.h),
+# copied from LiteX ad23dae51 so no LiteX install is needed
 INCLUDES = \
 	-I$(BUILDINC_DIRECTORY) \
-	-I$(CPU_DIRECTORY) \
-	-I$(SOC_DIRECTORY)/software/include \
-	-Itests
+	-I$(CURDIR)/include \
+	-Itests \
+	-I$(CURDIR)
 
 # Common flags (shared)
 COMMON_FLAGS = $(CPUFLAGS) -g -Wall $(INCLUDES) -ffreestanding -fno-builtin
@@ -31,7 +35,7 @@ APP_TARGET = $(APP)
 
 # Source files
 BOOT_OBJS = start.o boot_main.o
-APP_OBJS  = app_start.o $(APP).o
+APP_OBJS  = app_start.o $(APP).o isr.o
 
 # ── Default target: bootloader + selected firmware ────────────────────────────
 all: $(BOOT_TARGET).bin $(APP_TARGET).bin
@@ -46,7 +50,7 @@ $(BOOT_TARGET).bin: $(BOOT_TARGET).elf
 	@printf "  SIZE  bootloader: %d bytes\n" $$(wc -c < $@)
 
 $(BOOT_TARGET).elf: $(BOOT_OBJS)
-	$(CC) $(BOOT_CFLAGS) -nostdlib -Wl,--no-relax -T linker_boot.ld -o $@ $(BOOT_OBJS)
+	$(CC) $(BOOT_CFLAGS) -nostdlib -Wl,--no-relax -L$(BUILDINC_DIRECTORY) -T linker_boot.ld -o $@ $(BOOT_OBJS)
 
 start.o: start.S
 	$(CC) $(BOOT_CFLAGS) -c $< -o $@
@@ -60,10 +64,13 @@ $(APP_TARGET).bin: $(APP_TARGET).elf
 	@printf "  SIZE  firmware ($(APP)): %d bytes\n" $$(wc -c < $@)
 
 $(APP_TARGET).elf: $(APP_OBJS)
-	$(CC) $(APP_CFLAGS) -nostdlib -Wl,--no-relax -T linker_app.ld -o $@ $(APP_OBJS) \
+	$(CC) $(APP_CFLAGS) -nostdlib -Wl,--no-relax -L$(BUILDINC_DIRECTORY) -T linker_app.ld -o $@ $(APP_OBJS) \
 		-lgcc
 
 app_start.o: app_start.S
+	$(CC) $(APP_CFLAGS) -c $< -o $@
+
+isr.o: isr.c
 	$(CC) $(APP_CFLAGS) -c $< -o $@
 
 $(APP).o: $(APP_SRC)

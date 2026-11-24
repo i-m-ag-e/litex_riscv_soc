@@ -1,4 +1,5 @@
-INCLUDE ../build/digilent_basys3/software/include/generated/regions.ld
+/* regions.ld comes from the LiteX build dir, found via -L$(BUILDINC_DIRECTORY) in the Makefile */
+INCLUDE generated/regions.ld
 
 ENTRY(_start)
 

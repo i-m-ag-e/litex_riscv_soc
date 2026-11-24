@@ -1,64 +1,49 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
-#include "hardware/uart.h"
-#include "hardware/spi.h"
-#include "hardware/irq.h"
+#include "hardware/i2c.h"
+#include "pico/i2c_slave.h"
 
-#define UART_ID uart0
-#define BAUD_RATE 115200
-#define UART_TX_PIN 16
-#define UART_RX_PIN 17
+#define I2C_PORT i2c0
+#define I2C_SLAVE_ADDR 0x42
+#define I2C_SDA_PIN 16
+#define I2C_SCL_PIN 17
 
-#define SPI_ID spi0
-#define SPI_SCK_PIN 22
-#define SPI_CSN_PIN 21
-#define SPI_RX_PIN 20 // MOSI 
-#define SPI_TX_PIN 23 // MISO 
+static uint8_t rp2040_tx_counter = 0xD0; // Starts at D0
 
-// ─── UART BACKGROUND ECHO ───
-// Instantly catches the FPGA's routed keystrokes and shoots them back
-void on_uart_rx() {
-    while (uart_is_readable(UART_ID)) {
-        uint8_t ch = uart_getc(UART_ID);
-        uart_putc(UART_ID, ch + 1); // Echo back incremented
+static void i2c_slave_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
+    switch (event) {
+        case I2C_SLAVE_RECEIVE: {
+            uint8_t rx_data = i2c_read_byte_raw(i2c);
+            printf("[I2C RX] Received from FPGA: 0x%02X\n", rx_data);
+            break;
+        }
+        case I2C_SLAVE_REQUEST: {
+            rp2040_tx_counter++;
+            i2c_write_byte_raw(i2c, rp2040_tx_counter);
+            printf("[I2C TX] Sent to FPGA: 0x%02X\n", rp2040_tx_counter);
+            break;
+        }
+        case I2C_SLAVE_FINISH:
+            break;
+        default:
+            break;
     }
 }
 
 int main() {
     stdio_init_all();
-
-    // ─── 1. SETUP UART ───
-    uart_init(UART_ID, BAUD_RATE);
-    gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
-    gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
+    gpio_init(I2C_SDA_PIN); gpio_set_function(I2C_SDA_PIN, GPIO_FUNC_I2C); gpio_pull_up(I2C_SDA_PIN);
+    gpio_init(I2C_SCL_PIN); gpio_set_function(I2C_SCL_PIN, GPIO_FUNC_I2C); gpio_pull_up(I2C_SCL_PIN);
     
-    int UART_IRQ = UART_ID == uart0 ? UART0_IRQ : UART1_IRQ;
-    irq_set_exclusive_handler(UART_IRQ, on_uart_rx);
-    irq_set_enabled(UART_IRQ, true);
-    uart_set_irq_enables(UART_ID, true, false);
-
-    // ─── 2. SETUP SPI SLAVE ───
-    spi_init(SPI_ID, 1000 * 1000); 
-    spi_set_slave(SPI_ID, true);   
+    i2c_init(I2C_PORT, 100 * 1000);
+    i2c_slave_init(I2C_PORT, I2C_SLAVE_ADDR, &i2c_slave_handler);
     
-    gpio_set_function(SPI_RX_PIN, GPIO_FUNC_SPI);
-    gpio_set_function(SPI_SCK_PIN, GPIO_FUNC_SPI);
-    gpio_set_function(SPI_TX_PIN, GPIO_FUNC_SPI);
-    gpio_set_function(SPI_CSN_PIN, GPIO_FUNC_SPI);
-
-    // ─── 3. RAW HARDWARE LOOP ───
+    sleep_ms(2000);
+    printf("\n--- Shrike I2C Half-Duplex Slave Ready ---\n");
+    printf("Listening on Address: 0x%02X\n", I2C_SLAVE_ADDR);
+    
     while (1) {
-        // Perpetually lock 0xA5 into the transmit chamber so the 
-        // FPGA's SPI_DONE interrupt has a valid payload to read.
-        if (spi_is_writable(SPI_ID)) {
-            spi_get_hw(SPI_ID)->dr = 0xA5; 
-        }
-
-        // Dump incoming async triggers so we don't overflow
-        if (spi_is_readable(SPI_ID)) {
-            volatile uint32_t dump = spi_get_hw(SPI_ID)->dr; 
-        }
-        
-        tight_loop_contents(); 
+        tight_loop_contents();
     }
+    return 0;
 }

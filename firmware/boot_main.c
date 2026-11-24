@@ -38,7 +38,6 @@
 #include <generated/csr.h>
 #include <generated/mem.h>
 #include <generated/soc.h>
-#include <stdint.h>
 
 // ── Communications Protocol ──────────────────────────────────────────────────
 #define SYNC_BYTE 0x5A
@@ -438,73 +437,97 @@ void burn_to_flash(uint32_t size, uint32_t expected_checksum) {
   }
 }
 
+// Helper to read flash manually, completely bypassing the buggy XIP hardware
+void manual_flash_read(uint32_t addr, uint8_t *buf, uint32_t len) {
+    flash_cs_assert();
+    flash_spi_xfer(0x03); // Standard 1-1-1 READ command
+    flash_spi_xfer((addr >> 16) & 0xFF);
+    flash_spi_xfer((addr >> 8) & 0xFF);
+    flash_spi_xfer(addr & 0xFF);
+    for(uint32_t i = 0; i < len; i++) {
+        buf[i] = flash_spi_xfer(0xFF);
+    }
+    flash_cs_release();
+}
+
 // =============================================================================
 // MAIN BOOTLOADER STATE MACHINE
 // =============================================================================
 
 int main(void) {
+  portb_oe_write(0xFF); 
   volatile uint8_t *app_memory = (volatile uint8_t *)MAIN_RAM_BASE;
 
   portb_out_write(0x01); // LED 0: Bootloader online
 
-  uint32_t force_uart_mode = portc_in_read() & 0x01; // SW0
+  // ── 1. KICK FLASH OUT OF VIVADO HANG ──
+  spiflash_master_phyconfig_write(0x00010108);
+  
+  // Send 8 bytes of 0xFF to clear any Continuous Read modes
+  flash_cs_assert();
+  for(int i=0; i<8; i++) flash_spi_xfer(0xFF);
+  flash_cs_release();
+  
+  // Release from Deep Power Down (0xAB) just in case
+  flash_cs_assert();
+  flash_spi_xfer(0xAB);
+  flash_cs_release();
+  for(volatile int i=0; i<1000; i++); // Short delay for flash to wake up
+
+  uint32_t force_uart_mode = prog_mode_in_read() & 0x01; 
   uint32_t ram_retained = (REG_MAIN_RAM_MAGIC == WARM_BOOT_MAGIC);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // STATE A: Warm Reboot Fast-Path
-  //   SRAM magic is intact and SW0 is LOW → skip flash, run directly.
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── STATE A: Warm Reboot Fast-Path ──
   if (!force_uart_mode && ram_retained) {
     portb_out_write(0x00);
     jump_to_app();
     return 0;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // STATE B: Cold Boot — load from SPI flash
-  //   SW0 is LOW and SRAM is empty (or magic mismatch).
-  //   NOTE: No SPI master commands before this point!  State B uses the
-  //   XIP memory-mapped controller at SPIFLASH_BASE, which breaks if the
-  //   SPI master has been used (e.g. by SFDP probing).
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── STATE B: Manual Bitbang Read (XIP Bypassed) ──
   if (!force_uart_mode) {
-    volatile uint32_t *flash_data = (volatile uint32_t *)SPIFLASH_BASE;
-    volatile uint8_t *flash_payload = (volatile uint8_t *)(SPIFLASH_BASE + 12);
+    uint8_t header[12];
+    manual_flash_read(0x00000000, header, 12);
 
-    if (flash_data[0] == FLASH_MAGIC_WORD) {
+    // Reconstruct the 32-bit magic word
+    uint32_t magic = header[0] | (header[1]<<8) | (header[2]<<16) | (header[3]<<24);
+
+    if (magic == FLASH_MAGIC_WORD) {
       portb_out_write(0x02); // LED 1: Loading from Flash
 
-      uint32_t flash_app_size = flash_data[1];
-      uint32_t flash_app_checksum = flash_data[2];
+      uint32_t flash_app_size = header[4] | (header[5]<<8) | (header[6]<<16) | (header[7]<<24);
+      uint32_t flash_app_checksum = header[8] | (header[9]<<8) | (header[10]<<16) | (header[11]<<24);
 
-      // ── FIX [1]: Bounds check before touching SRAM ────────────────────
-      // A corrupted flash_app_size (e.g. 0xFFFFFFFF after partial erase)
-      // would previously overflow MAIN_RAM and corrupt the stack.
-      if (flash_app_size == 0 || flash_app_size > (MAIN_RAM_SIZE - 4)) {
-        // Fall through to State C — flash header is clearly garbage.
-        goto state_c;
-      }
+      if (flash_app_size > 0 && flash_app_size <= (MAIN_RAM_SIZE - 4)) {
+        uint32_t calculated_checksum = 0;
+        
+        // Manually stream the payload into SRAM
+        flash_cs_assert();
+        flash_spi_xfer(0x03);
+        flash_spi_xfer(0x00); // Address 12 (0x00000C)
+        flash_spi_xfer(0x00);
+        flash_spi_xfer(0x0C);
+        
+        for (uint32_t i = 0; i < flash_app_size; i++) {
+          uint8_t b = flash_spi_xfer(0xFF);
+          app_memory[i] = b;
+          calculated_checksum += b;
+        }
+        flash_cs_release();
 
-      uint32_t calculated_checksum = 0;
-      for (uint32_t i = 0; i < flash_app_size; i++) {
-        uint8_t b = flash_payload[i];
-        app_memory[i] = b;
-        calculated_checksum += b;
+        if (calculated_checksum == flash_app_checksum) {
+          REG_MAIN_RAM_MAGIC = WARM_BOOT_MAGIC;
+          portb_out_write(0x00);
+          jump_to_app();
+          return 0;
+        }
       }
-
-      if (calculated_checksum == flash_app_checksum) {
-        REG_MAIN_RAM_MAGIC = WARM_BOOT_MAGIC;
-        portb_out_write(0x00);
-        jump_to_app();
-        return 0;
-      }
-      // Checksum mismatch — flash is corrupted, fall through to State C.
     }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
   // STATE C: UART Ingestion
-  //   SW0 is HIGH, or flash is empty/corrupted.
+  //   PROG_MODE is HIGH, or flash is empty/corrupted.
   //   Waits for the uploader.py script, receives the binary, validates it,
   //   writes it to flash, and boots.
   // ─────────────────────────────────────────────────────────────────────────
