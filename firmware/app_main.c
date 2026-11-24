@@ -2,150 +2,75 @@
 #include <generated/csr.h>
 #include <generated/soc.h>
 #include "irq.h"
+#include "isr.h"
 
-// ─── 1. GLOBALS ───
-volatile uint32_t system_ticks = 0;
-volatile uint8_t  flag_100ms   = 0;
-
-volatile uint32_t timer1_periods = 0; // Incremented by Timer1 overflow interrupt
-
-#define RX_BUF_SIZE 64
-volatile uint8_t  rx_buffer[RX_BUF_SIZE];
-volatile uint16_t rx_head = 0; 
-volatile uint16_t rx_tail = 0; 
-
-// ─── 2. THE FAST INTERRUPT HANDLER ───
-void isr(void) {
-    // A. Timer0 (1ms system tick)
-    if (timer0_ev_pending_read() & 1) {
-        system_ticks++;
-        if (system_ticks % 100 == 0) {
-            flag_100ms = 1; 
-        }
-        timer0_ev_pending_write(1); 
-    }
-
-    // B. UART RX
-    if (uart_ev_pending_read() & (1 << CSR_UART_EV_PENDING_RX_OFFSET)) {
-        while (!uart_rxempty_read()) {
-            rx_buffer[rx_head] = uart_rxtx_read();
-            rx_head = (rx_head + 1) % RX_BUF_SIZE;
-        }
-        uart_ev_pending_write(1 << CSR_UART_EV_PENDING_RX_OFFSET);
-    }
-
-    // C. Timer1 PWM Overflow (Fires when PWM counter hits TOP)
-    if (timer1_ev_pending_read() & (1 << CSR_TIMER1_EV_PENDING_OVERFLOW_OFFSET)) {
-        timer1_periods++;
-        timer1_ev_pending_write(1 << CSR_TIMER1_EV_PENDING_OVERFLOW_OFFSET);
-    }
-}
-
-// ─── 3. UART TRANSMIT UTILITY ───
 void print_char(char c) {
     while(uart_txfull_read()); 
     uart_rxtx_write(c);
 }
 
-// ─── 4. MAIN APPLICATION ───
-int main(void) {
-    // 1. Setup Yellow LEDs (PORTB)
-    portb_out_write(0x00);
+void print_str(const char *str) {
+    while(*str) print_char(*str++);
+}
 
-    // 2. Setup Tristate Pins (PORTD) as Outputs
-    // Write 0x0F to Output Enable to make ONLY the first 4 pins outputs
-    portd_oe_write(0x0F); 
-    portd_out_write(0x00);
-
-    // 3. Configure Timer0
+void system_init(void) {
+    // Timer Init
     uint32_t ticks_per_ms = CONFIG_CLOCK_FREQUENCY / 1000;
-    timer0_en_write(0);                 
-    timer0_load_write(0);               
-    timer0_reload_write(ticks_per_ms);  
+    timer0_en_write(0); timer0_load_write(0); timer0_reload_write(ticks_per_ms);
     timer0_ev_pending_write(timer0_ev_pending_read());
-    timer0_ev_enable_write(1);
-    timer0_en_write(1); 
+    timer0_ev_enable_write(CSR_TIMER0_EV_ENABLE_ZERO_SIZE); 
+    timer0_en_write(1);
 
-    // 4. Configure UART RX Interrupt
-    uart_ev_pending_write(uart_ev_pending_read());
-    uart_ev_enable_write(1 << CSR_UART_EV_ENABLE_RX_OFFSET);
+    portb_oe_write(0xFF); 
+    portc_oe_write(0x00); 
+    i2c_master_active_write(1);
 
-    // 5. Configure Timer1 (Hardware PWM AND Overflow Interrupt)
-    timer1_ctrl_write(0);                 
-    timer1_top_write(20000);              
-    timer1_cc_a_write(0); // Pin A15                 
-    timer1_cc_b_write(0); // Pin A17 
-    timer1_ev_pending_write(timer1_ev_pending_read()); // Clear stale
-    timer1_ev_enable_write(1 << CSR_TIMER1_EV_ENABLE_OVERFLOW_OFFSET); // ENABLE IRQ               
-    timer1_ctrl_write(1);                 
+    spi_master_phyconfig_write((8 << CSR_SPI_MASTER_PHYCONFIG_LEN_OFFSET) | 
+                               (1 << CSR_SPI_MASTER_PHYCONFIG_WIDTH_OFFSET) | 
+                               (1 << CSR_SPI_MASTER_PHYCONFIG_MASK_OFFSET));
 
-    // 6. Unmask ALL CPU Interrupts
-    irq_setmask(
-        (1 << TIMER0_INTERRUPT) | 
-        (1 << UART_INTERRUPT)   | 
-        (1 << TIMER1_INTERRUPT)
-    );
+    // --- NEW: Clear and Enable UART1 RX Interrupts ---
+    uart1_ev_pending_write(uart1_ev_pending_read());
+    uart1_ev_enable_write(1 << CSR_UART1_EV_ENABLE_RX_OFFSET);
+
+    // Add UART1_INTERRUPT to the CPU's interrupt mask
+    irq_setmask((1 << TIMER0_INTERRUPT) | 
+                (1 << SPI_INTERRUPT) | 
+                (1 << I2C_INTERRUPT) | 
+                (1 << UART1_INTERRUPT));
     irq_setie(1);
+}
 
-    // Logic Variables
-    uint8_t  led_counter = 0;
+int main(void) {
+    system_init();
     
-    uint16_t pwm_duty = 0;
-    int8_t   pwm_direction = 1;
-    
-    uint32_t last_timer1_periods = 0;
-    uint8_t  portd_chaser_idx = 0;
+    print_str("\r\n=== UART1 Interrupt Loopback Test ===\r\n");
+    print_str("Ensure PMOD JB Pins B15 (TX) and B16 (RX) are connected.\r\n");
 
-    // ─── SUPER LOOP ───
+    char test_char = 'A';
+
     while(1) {
-        
-        // Task 1: Check Timer0 (100ms intervals)
-        if (flag_100ms) {
-            flag_100ms = 0; 
+        // 1. Send a character every 1 second
+        if (flag_1sec) {
+            flag_1sec = 0;
             
-            // Increment the yellow FPGA LEDs
-            led_counter++;
-            portb_out_write(led_counter);
+            print_str("[MAIN] Sending out UART1: "); 
+            print_char(test_char); 
+            print_str("\r\n");
             
-            // Animate the hardware PWM breathing on A15 and A17
-            if (pwm_direction == 1) {
-                pwm_duty += 500;
-                if (pwm_duty >= 20000) pwm_direction = -1;
-            } else {
-                pwm_duty -= 500;
-                if (pwm_duty == 0) pwm_direction = 1;
-            }
-            timer1_cc_a_write(pwm_duty);
-            timer1_cc_b_write(20000 - pwm_duty); 
+            uart1_rxtx_write(test_char);
+            
+            test_char++;
+            if (test_char > 'Z') test_char = 'A';
         }
 
-        // Task 2: Check Timer1 (Independent timing for the PORTD Chaser)
-        // At 50MHz with a TOP of 20,000, the overflow interrupt fires 2500 times a second.
-        // We wait for 625 periods to pass (exactly 250 milliseconds).
-        if ((timer1_periods - last_timer1_periods) >= 625) {
-            last_timer1_periods = timer1_periods;
-            
-            // Output a 1 to exactly one of the 4 LEDs
-            portd_out_write(1 << portd_chaser_idx);
-            
-            // Move to the next LED (0, 1, 2, 3 -> wrap to 0)
-            portd_chaser_idx = (portd_chaser_idx + 1) % 4;
+        // 2. Immediately print whenever the hardware interrupt catches a bounced character
+        if (uart1_rx_flag) {
+            uart1_rx_flag = 0;
+            print_str("[ISR]  Caught on UART1 RX: "); 
+            print_char(uart1_rx_byte); 
+            print_str("\r\n--------------------------------\r\n");
         }
-
-        // Task 3: Check the UART Ring Buffer
-        if (rx_tail != rx_head) {
-            uint8_t incoming_char = rx_buffer[rx_tail];
-            rx_tail = (rx_tail + 1) % RX_BUF_SIZE;
-            
-            if (incoming_char >= 'a' && incoming_char <= 'z') {
-                print_char(incoming_char - 32); 
-            } else {
-                print_char(incoming_char);
-            }
-        }
-
-        watchdog_feed_write(1);
     }
-
     return 0;
 }

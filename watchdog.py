@@ -16,53 +16,37 @@
 # =============================================================================
 
 from migen import *
-from litex.soc.interconnect.csr import AutoCSR, CSRStorage, CSRStatus
-
+from litex.soc.interconnect.csr import *
 
 class WatchdogTimer(Module, AutoCSR):
-    """32-bit countdown watchdog timer.
-
-    Attributes
-    ----------
-    reset_out : Signal
-        Directly connect to CPU reset. Asserts when the counter expires.
-    """
-
     def __init__(self):
-        # ── CSR Registers ──
-        self._load    = CSRStorage(32, name="load",    description="Timeout reload value (clock cycles)")
-        self._ctrl    = CSRStorage(1,  name="ctrl",    description="Bit 0: enable watchdog")
-        self._feed    = CSRStorage(1,  name="feed",    description="Write to kick (reload counter)")
-        self._counter = CSRStatus(32,  name="counter", description="Current countdown value")
-
-        # ── Output: directly drives CPU reset ──
+        # Match the CSRs you already have
+        self.load    = CSRStorage(32, description="Ticks before reset")
+        self.ctrl    = CSRStorage(1,  description="Bit 0: Enable")
+        self.feed    = CSRStorage(1,  description="Write to feed the dog")
+        self.counter = CSRStatus(32,  description="Current tick value")
+        
+        # The hardware output
         self.reset_out = Signal()
 
-        # ── Internal counter ──
-        counter = Signal(32)
-
-        # Expose counter to CSR readback
-        self.comb += self._counter.status.eq(counter)
-
+        # Internal counter register
+        count = Signal(32)
+        self.comb += self.counter.status.eq(count)
+        
+        # The synchronous logic (happens once per clock cycle)
         self.sync += [
-            If(~self._ctrl.storage[0],
-                # Disabled: hold at reload value, deassert reset.
-                # This also handles the initial state after system reset
-                # (ctrl defaults to 0, so watchdog is disabled until
-                # firmware explicitly enables it).
-                counter.eq(self._load.storage),
-                self.reset_out.eq(0),
-            ).Elif(self._feed.re,
-                # Kick: firmware wrote to the feed register.
-                # Reload counter from the load value. The actual data
-                # written doesn't matter — only the write strobe (re) counts.
-                counter.eq(self._load.storage),
-            ).Elif(counter == 0,
-                # Expired: assert reset and hold it.
-                # Only a system reset or disabling the watchdog clears this.
-                self.reset_out.eq(1),
-            ).Else(
-                # Running: count down.
-                counter.eq(counter - 1),
+            self.reset_out.eq(0), # Always default to LOW so we don't trap the CPU
+            
+            If(self.feed.re,
+                # If software writes to the feed register, reload the timer
+                count.eq(self.load.storage)
+            ).Elif(self.ctrl.storage == 1,
+                # If enabled, count down
+                If(count == 0,
+                    self.reset_out.eq(1),       # FIRE the 1-cycle reset pulse
+                    count.eq(self.load.storage) # RELOAD instantly so it doesn't fire again next cycle
+                ).Else(
+                    count.eq(count - 1)
+                )
             )
         ]
